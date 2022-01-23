@@ -14,6 +14,10 @@
 #define SCREEN_ADDRESS 0x3C // See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
+#define DEBUG_SERIAL
+#define DEBUG_DISPLAY
+#include "debug.h"
+
 // Wifi Data
 HTTPClient http;
 String jsonBuffer;
@@ -34,24 +38,21 @@ void setup() {
   display.setCursor(0,0); // Start at top-left corner
   display.cp437(true); // Use full 256 char 'Code Page 437' font
   display.clearDisplay();display.display();
-  Serial.println(F("Booting WeatherTV"));
-  display.println(F("Booting WeatherTV"));
+  DEBUG("Booting WeatherTV");
 
   // setup Wifi
-  Serial.println(F("> Connecting to WiFi..."));
-  display.println(F("> Connecting to WiFi...")); display.display();
+  DEBUG("> Wifi connection...");
   WiFi.begin(wifiSSID, wifiPW);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
-    display.write('.');
+    display.write('.'); display.display();
   }
-  Serial.println(F("Wifi connected"));
-  display.println(F("Wifi connected")); display.display();
+  DEBUG("Wifi connected");
 }
 
 void loop() {
   delay(5000);
-  Serial.println(F("still alive"));
+  DEBUG("still alive");
   /*
   if(!madeRequest) {
     WiFiClient client;
