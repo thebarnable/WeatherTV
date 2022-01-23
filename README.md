@@ -6,6 +6,8 @@ arduino-cli core update-index # update core libs for this project config
 arduino-cli core install esp8266:esp8266
 arduino-cli lib install "Adafruit SSD1306"
 cd weathertv && arduino-cli board attach esp8266:esp8266:nodemcuv2 # optional: creates sketch.json, no need to specify --fqpn anymore
+
+echo "String wifiSSID = \"Insert WiFi SSID\"; String wifiPW = \"Insert WiFi password\"; String openWeatherMapAPI = \"Insert openWeatherMap API token\";" > wifi.h
 ```
 
 ### Compile
