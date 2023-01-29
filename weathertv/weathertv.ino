@@ -5,6 +5,7 @@
 #include <ESP8266HTTPClient.h>
 #include <ArduinoJson.h>
 
+#include "Printer.h"
 #include "wifi.h"
 
 // SSD1306 display (on Arduino UNO/ESP8266): A4(SDA), A5(SCL))
@@ -15,10 +16,9 @@
 #define SCREEN_ADDRESS 0x3C // See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// Debugging to serial and OLED display (needs to know 'display')
-#define DEBUG_SERIAL
-#define DEBUG_DISPLAY
-#include "debug.h"
+// printer.printlnging to serial and OLED display (needs to know 'display')
+//bool printer.println_DISPLAY = true;
+//bool printer.println_SERIAL = true;
 
 // WiFi
 HTTPClient http;
@@ -43,13 +43,14 @@ int httpCode;
  "cod":200}
 */
 StaticJsonDocument<1000> doc;
+Printer printer(&display);
 
 void setup() {
   Serial.begin(9600);
 
   // setup ssd1306 display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    DEBUG("ERROR: SSD1306 allocation failed"); // TODO: use F("")?
+    Serial.println("ERROR: SSD1306 allocation failed"); // TODO: use F("")?
     while(1); // don't proceed, loop forever
   }
 
@@ -58,23 +59,24 @@ void setup() {
   display.setCursor(0,0); // Start at top-left corner
   display.cp437(true); // Use full 256 char 'Code Page 437' font
   display.clearDisplay();display.display();
-  DEBUG("Booting WeatherTV");
+  printer.turnOnDisplay();
+  printer.println("Booting WeatherTV");
 
   // setup Wifi
-  DEBUG("> Connecting to WiFi");
+  printer.println("> Connecting to WiFi");
   WiFi.begin(wifiSSID, wifiPW);
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     display.write('.'); display.display();
   }
-  DEBUG("> WiFi connection successful");
+  printer.println("> WiFi connection successful");
 
   delay(500);
 }
 
 void loop() {
   delay(5000);
-  DEBUG("still alive");
+  //printer.println("still alive");
 
   if(!madeRequest) {
     if(http.begin(client, openWeatherMapAPI.c_str())) {
@@ -102,7 +104,7 @@ void loop() {
         float lon = doc["coord"]["lon"];
         float lat = doc["coord"]["lat"];
 
-        Serial.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);
+        printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);
       }
     } else {
       Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
