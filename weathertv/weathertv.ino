@@ -27,6 +27,9 @@ bool madeRequest=false;
 WiFiClient client;
 int httpCode;
 
+// GPIO
+constexpr uint8_t BUTTON = 16; // D0 == GPIO16
+
 // Weather Data
 /* Example:
 {"coord":{"lon":6.0834,"lat":50.7766},
@@ -45,6 +48,66 @@ int httpCode;
 StaticJsonDocument<1000> doc;
 Printer printer(&display);
 
+// State
+enum DisplayState {
+  DEBUG,
+  MAIN,
+  STAT
+};
+DisplayState displayState = DEBUG;
+int prevButtonState = LOW;
+
+bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
+  printer.println("[getWeatherData] Connecting to openweathermap...");
+  if(http.begin(client, openWeatherMapAPI.c_str())) {
+    printer.println("[getWeatherData] Connected");
+  } else {
+    printer.println("[getWeatherData] Couldn't connect");
+    return false;
+  }
+
+  int httpCode = 0;
+  while(httpCode != HTTP_CODE_OK) { // TODO: || HTTP_CODE_MOVED_PERMANENTLY
+    printer.println("[getWeatherData] Sending GET request...");
+    httpCode = http.GET();
+    if(httpCode == HTTP_CODE_OK) { 
+      printer.println("[getWeatherData] Got HTTP_CODE_OK :)");
+      deserializeJson(weatherDoc, http.getString().c_str());
+      //serializeJson(weatherDoc["weather"], Serial);
+
+      /*float lon = weatherDoc["coord"]["lon"];
+      float lat = weatherDoc["coord"]["lat"];
+
+      printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);*/
+    } else {
+      printer.printf("[getWeatherData] Didn't get HTTP_CODE_OK :( \n >Error: %s\n", http.errorToString(httpCode).c_str());
+      return false;
+    }
+  }
+  return true;
+}
+
+void displayMain() {
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("main");
+  display.display();
+}
+
+void displayStat() {
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("stat");
+  display.display();
+}
+
+void displayDebug() {
+  display.clearDisplay();
+  display.setCursor(0,0);
+  display.println("debug");
+  display.display();
+}
+
 void setup() {
   Serial.begin(9600);
 
@@ -58,56 +121,48 @@ void setup() {
   display.setTextColor(SSD1306_WHITE); // Draw white text
   display.setCursor(0,0); // Start at top-left corner
   display.cp437(true); // Use full 256 char 'Code Page 437' font
-  display.clearDisplay();display.display();
+  display.clearDisplay();
+  display.display();
   printer.turnOnDisplay();
   printer.println("Booting WeatherTV");
 
   // setup Wifi
   printer.println("> Connecting to WiFi");
   WiFi.begin(wifiSSID, wifiPW);
-  while (WiFi.status() != WL_CONNECTED) {
+  while (WiFi.status() != WL_CONNECTED)
     delay(500);
-    display.write('.'); display.display();
-  }
   printer.println("> WiFi connection successful");
 
-  delay(500);
+  delay(1000);
+  while(1) {
+    delay(1000);
+    int buttonState = digitalRead(BUTTON);
+    if(buttonState == HIGH)
+      break;
+  }
+
+  // setup GPIOs
+  pinMode(BUTTON, INPUT);
 }
 
 void loop() {
-  delay(5000);
-  //printer.println("still alive");
+  // button press -> change display
+  delay(100);
+  int buttonState = digitalRead(BUTTON);
 
-  if(!madeRequest) {
-    if(http.begin(client, openWeatherMapAPI.c_str())) {
-      Serial.print("[HTTP] GET...\n");
-      httpCode = http.GET();
-      if(httpCode > 0) {
-        Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-        if(httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-          Serial.println(http.getString());
-        }
-      } else {
-        Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
-      }
-    } {
-      Serial.print("[HTTP] Couldn't connect\n");
-    }
-    madeRequest= true;
-  } else {
-    if(httpCode > 0) {
-      Serial.printf("[HTTP] GET... code: %d\n", httpCode);
-      if(httpCode == HTTP_CODE_OK || httpCode == HTTP_CODE_MOVED_PERMANENTLY) {
-        deserializeJson(doc, http.getString().c_str());
-        serializeJson(doc["weather"], Serial);
-
-        float lon = doc["coord"]["lon"];
-        float lat = doc["coord"]["lat"];
-
-        printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);
-      }
-    } else {
-      Serial.printf("[HTTP] GET... failed, error: %s\n", http.errorToString(httpCode).c_str());
+  if(buttonState == HIGH && prevButtonState == LOW) { // low -> high = button just pressed
+    switch(displayState) {
+      case DEBUG: displayState = MAIN;  Serial.println("debug -> main"); break;
+      case MAIN:  displayState = STAT;  Serial.println("main -> stat"); break;
+      case STAT:  displayState = DEBUG; Serial.println("stat -> debug"); break;
     }
   }
+
+  switch(displayState) {
+    case DEBUG: displayDebug(); break;
+    case MAIN:  displayMain(); break;
+    case STAT:  displayStat(); break;
+  }
+
+  prevButtonState = buttonState;
 }
