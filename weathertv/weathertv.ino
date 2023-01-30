@@ -90,7 +90,32 @@ bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
 void displayMain() {
   display.clearDisplay();
   display.setCursor(0,0);
-  display.println("main");
+
+  // Date
+  String exampleDate = "Tue, Jan 29";
+  uint32_t dateLength = exampleDate.length();
+  Serial.printf("datelength: %d", dateLength);
+  display.setTextSize(1);
+  display.setCursor(64-dateLength/2*4,0);
+  display.print(exampleDate);
+
+  // WiFi connection
+
+  // Weather icon
+
+  // Temperature
+  String exampleTemp = "28";
+  display.setTextSize(2);
+  display.setCursor(64-8,16);
+  display.print(exampleTemp);
+  display.drawCircle(4, 4, 4, 0xFFFFu);
+
+  // Place
+
+  // Description
+
+  // Sun rise/fall
+
   display.display();
 }
 
@@ -133,9 +158,8 @@ void setup() {
     delay(500);
   printer.println("> WiFi connection successful");
 
-  delay(1000);
   while(1) {
-    delay(1000);
+    delay(100);
     int buttonState = digitalRead(BUTTON);
     if(buttonState == HIGH)
       break;
@@ -156,12 +180,12 @@ void loop() {
       case MAIN:  displayState = STAT;  Serial.println("main -> stat"); break;
       case STAT:  displayState = DEBUG; Serial.println("stat -> debug"); break;
     }
-  }
 
-  switch(displayState) {
-    case DEBUG: displayDebug(); break;
-    case MAIN:  displayMain(); break;
-    case STAT:  displayStat(); break;
+    switch(displayState) {
+      case DEBUG: displayDebug(); break;
+      case MAIN:  displayMain(); break;
+      case STAT:  displayStat(); break;
+    }
   }
 
   prevButtonState = buttonState;
