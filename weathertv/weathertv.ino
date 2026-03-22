@@ -50,11 +50,11 @@ Printer printer(&display);
 
 // State
 enum DisplayState {
-  DEBUG,
-  MAIN,
-  STAT
+  SUN,
+  TEMP,
+  DATE
 };
-DisplayState displayState = DEBUG;
+DisplayState displayState = SUN;
 int prevButtonState = HIGH;
 
 bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
@@ -88,49 +88,42 @@ bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
   return true;
 }
 
-void displayMain() {
+void displaySun() {
   display.clearDisplay();
   display.setCursor(0,0);
 
-  // Date
-  String exampleDate = "Tue, Jan 29";
-  uint32_t dateLength = exampleDate.length();
-  Serial.printf("datelength: %d", dateLength);
-  display.setTextSize(1);
-  display.setCursor(64-dateLength/2*4,0);
-  display.print(exampleDate);
+  String icon = "sun";
+  display.setTextSize(4);
+  display.setCursor(64-8,16);
+  display.print(icon);
 
-  // WiFi connection
+  display.display();
+}
 
-  // Weather icon
+void displayTemp() {
+  display.clearDisplay();
+  display.setCursor(0,0);
 
-  // Temperature
   String exampleTemp = "28";
   display.setTextSize(2);
   display.setCursor(64-8,16);
   display.print(exampleTemp);
-  display.drawCircle(4, 4, 4, 0xFFFFu);
-
-  // Place
-
-  // Description
-
-  // Sun rise/fall
+  display.write(0xF8); // degrees symbol
 
   display.display();
 }
 
-void displayStat() {
+void displayDate() {
   display.clearDisplay();
   display.setCursor(0,0);
-  display.println("stat");
-  display.display();
-}
 
-void displayDebug() {
-  display.clearDisplay();
-  display.setCursor(0,0);
-  display.println("debug");
+  String exampleDate = "Tue, Jan 29";
+  uint32_t dateLength = exampleDate.length();
+  Serial.printf("datelength: %d", dateLength);
+  display.setTextSize(2);
+  display.setCursor(64-dateLength/2*4,16);
+  display.print(exampleDate);
+
   display.display();
 }
 
@@ -161,7 +154,7 @@ void setup() {
   display.cp437(true); // Use full 256 char 'Code Page 437' font
   display.clearDisplay();
   display.display();
-  //printer.turnOnDisplay();
+
   printer.println("Booting WeatherTV");
 
   // setup Wifi
@@ -179,15 +172,15 @@ void loop() {
 
   if(buttonState == LOW && prevButtonState == HIGH) { // high -> low = button just pressed
     switch(displayState) {
-      case DEBUG: displayState = MAIN;  Serial.println("debug -> main"); break;
-      case MAIN:  displayState = STAT;  Serial.println("main -> stat"); break;
-      case STAT:  displayState = DEBUG; Serial.println("stat -> debug"); break;
+      case SUN: displayState = TEMP; Serial.println("Switching states: SUN -> TEMP"); break;
+      case TEMP: displayState = DATE;  Serial.println("Switching state: TEMP -> DATE"); break;
+      case DATE: displayState = SUN; Serial.println("Switching state: DATE -> SUN"); break;
     }
 
     switch(displayState) {
-      case DEBUG: displayDebug(); break;
-      case MAIN:  displayMain(); break;
-      case STAT:  displayStat(); break;
+      case SUN: displaySun(); break;
+      case TEMP: displayTemp(); break;
+      case DATE: displayDate(); break;
     }
   }
 
