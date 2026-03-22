@@ -28,7 +28,7 @@ WiFiClient client;
 int httpCode;
 
 // GPIO
-constexpr uint8_t BUTTON = 16; // D0 == GPIO16
+constexpr uint8_t BUTTON = 14; // D0 == GPIO16
 
 // Weather Data
 /* Example:
@@ -55,7 +55,7 @@ enum DisplayState {
   STAT
 };
 DisplayState displayState = DEBUG;
-int prevButtonState = LOW;
+int prevButtonState = HIGH;
 
 bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
   printer.println("[getWeatherData] Connecting to openweathermap...");
@@ -137,6 +137,18 @@ void displayDebug() {
 void setup() {
   Serial.begin(9600);
 
+    // setup GPIOs
+  pinMode(BUTTON, INPUT_PULLUP);
+
+  while(1) {
+    delay(50);
+    int buttonState = digitalRead(BUTTON);
+    if(buttonState == LOW) { // button pressed
+      Serial.println("Button pressed!");
+      break;
+    }
+  }
+
   // setup ssd1306 display
   if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
     Serial.println("ERROR: SSD1306 allocation failed"); // TODO: use F("")?
@@ -158,16 +170,6 @@ void setup() {
   while (WiFi.status() != WL_CONNECTED)
     delay(500);
   printer.println("> WiFi connection successful");
-
-  while(1) {
-    delay(100);
-    int buttonState = digitalRead(BUTTON);
-    if(buttonState == HIGH)
-      break;
-  }
-
-  // setup GPIOs
-  pinMode(BUTTON, INPUT);
 }
 
 void loop() {
@@ -175,7 +177,7 @@ void loop() {
   delay(100);
   int buttonState = digitalRead(BUTTON);
 
-  if(buttonState == HIGH && prevButtonState == LOW) { // low -> high = button just pressed
+  if(buttonState == LOW && prevButtonState == HIGH) { // high -> low = button just pressed
     switch(displayState) {
       case DEBUG: displayState = MAIN;  Serial.println("debug -> main"); break;
       case MAIN:  displayState = STAT;  Serial.println("main -> stat"); break;
