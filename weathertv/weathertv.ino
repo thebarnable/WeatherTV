@@ -80,7 +80,8 @@ bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
 
       printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);*/
     } else {
-      printer.printf("[getWeatherData] Didn't get HTTP_CODE_OK :( \n >Error: %s\n", http.errorToString(httpCode).c_str());
+      printer.println("[getWeatherData] Didn't get HTTP_CODE_OK :( ");
+      //printer.printf("[getWeatherData] Didn't get HTTP_CODE_OK :( \n >Error: %s\n", http.errorToString(httpCode).c_str());
       return false;
     }
   }
@@ -148,7 +149,7 @@ void setup() {
   display.cp437(true); // Use full 256 char 'Code Page 437' font
   display.clearDisplay();
   display.display();
-  printer.turnOnDisplay();
+  //printer.turnOnDisplay();
   printer.println("Booting WeatherTV");
 
   // setup Wifi
