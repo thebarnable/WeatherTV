@@ -61,8 +61,11 @@ DisplayState displayState = SUN;
 int prevButtonState = HIGH;
 
 bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
-  printer.println("[getWeatherData] Connecting to openweathermap...");
-  if(http.begin(client, openWeatherMapAPI.c_str())) {
+  String url = String("http://api.openweathermap.org/data/2.5/weather?q=Nuremberg,DE")
+    + "&appid=" + openWeatherMapAPI.c_str() + "&units=metric";
+
+  printer.printf("[getWeatherData] Connecting to %s...", url.c_str());
+  if(http.begin(client, url)) {
     printer.println("[getWeatherData] Connected");
   } else {
     printer.println("[getWeatherData] Couldn't connect");
@@ -78,10 +81,12 @@ bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
       deserializeJson(weatherDoc, http.getString().c_str());
       //serializeJson(weatherDoc["weather"], Serial);
 
-      /*float lon = weatherDoc["coord"]["lon"];
+      float lon = weatherDoc["coord"]["lon"];
       float lat = weatherDoc["coord"]["lat"];
+      String weather = weatherDoc["weather"]["main"];
 
-      printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);*/
+      printer.printf("longitude: %.4f; latitude: %.4f\n", lon, lat);
+      printer.printf("weather: %s\n", weather.c_str());
     } else {
       printer.println("[getWeatherData] Didn't get HTTP_CODE_OK :( ");
       //printer.printf("[getWeatherData] Didn't get HTTP_CODE_OK :( \n >Error: %s\n", http.errorToString(httpCode).c_str());
@@ -121,6 +126,7 @@ void displayTemp() {
 }
 
 void displayDate() {
+  getWeatherData(doc);
   if(DISPLAY_ACTIVE) {
     display.clearDisplay();
     display.setCursor(0,0);
