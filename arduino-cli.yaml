@@ -1,7 +1,6 @@
 board_manager:
     additional_urls:
-        - http://arduino.esp8266.com/stable/package_esp8266com_index.json
-        - https://arduino.esp8266.com/stable/package_esp8266com_index.json
+        - https://jihulab.com/esp-mirror/espressif/arduino-esp32.git
 daemon:
     port: "50051"
 directories:
