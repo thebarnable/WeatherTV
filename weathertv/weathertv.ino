@@ -1,8 +1,9 @@
-#include "ESP8266WiFi.h"
 #include <Wire.h>
+#include <WiFi.h>
 #include <Adafruit_GFX.h>
 #include <Adafruit_SSD1306.h>
-#include <ESP8266HTTPClient.h>
+#include <HTTPClient.h>
+//#include "esp_http_client.h"
 #include <ArduinoJson.h>
 
 #include "Printer.h"
@@ -16,9 +17,11 @@
 #define SCREEN_ADDRESS 0x3C // See datasheet for Address; 0x3D for 128x64, 0x3C for 128x32
 Adafruit_SSD1306 display(SCREEN_WIDTH, SCREEN_HEIGHT, &Wire, OLED_RESET);
 
-// printer.printlnging to serial and OLED display (needs to know 'display')
-//bool printer.println_DISPLAY = true;
-//bool printer.println_SERIAL = true;
+// functionality toggles (for debugging)
+constexpr bool BUTTONS_ACTIVE   = false;
+constexpr bool WIFI_ACTIVE      = true;
+constexpr bool DISPLAY_ACTIVE   = false;
+constexpr bool WAIT_FOR_SERIAL  = true;
 
 // WiFi
 HTTPClient http;
@@ -28,7 +31,7 @@ WiFiClient client;
 int httpCode;
 
 // GPIO
-constexpr uint8_t BUTTON = 14; // D0 == GPIO16
+constexpr uint8_t BUTTON = D10;
 
 // Weather Data
 /* Example:
@@ -89,92 +92,117 @@ bool getWeatherData(StaticJsonDocument<1000>& weatherDoc) {
 }
 
 void displaySun() {
-  display.clearDisplay();
-  display.setCursor(0,0);
+  if(DISPLAY_ACTIVE) {
+    display.clearDisplay();
+    display.setCursor(0,0);
 
-  String icon = "sun";
-  display.setTextSize(4);
-  display.setCursor(64-8,16);
-  display.print(icon);
+    String icon = "sun";
+    display.setTextSize(4);
+    display.setCursor(64-8,16);
+    display.print(icon);
 
-  display.display();
+    display.display();
+  }
 }
 
 void displayTemp() {
-  display.clearDisplay();
-  display.setCursor(0,0);
+  if(DISPLAY_ACTIVE) {
+    display.clearDisplay();
+    display.setCursor(0,0);
 
-  String exampleTemp = "28";
-  display.setTextSize(2);
-  display.setCursor(64-8,16);
-  display.print(exampleTemp);
-  display.write(0xF8); // degrees symbol
+    String exampleTemp = "28";
+    display.setTextSize(2);
+    display.setCursor(64-8,16);
+    display.print(exampleTemp);
+    display.write(0xF8); // degrees symbol
 
-  display.display();
+    display.display();
+  }
 }
 
 void displayDate() {
-  display.clearDisplay();
-  display.setCursor(0,0);
-
-  String exampleDate = "Tue, Jan 29";
-  uint32_t dateLength = exampleDate.length();
-  Serial.printf("datelength: %d", dateLength);
-  display.setTextSize(2);
-  display.setCursor(64-dateLength/2*4,16);
-  display.print(exampleDate);
-
-  display.display();
+  if(DISPLAY_ACTIVE) {
+    display.clearDisplay();
+    display.setCursor(0,0);
+  
+    String exampleDate = "Tue, Jan 29";
+    uint32_t dateLength = exampleDate.length();
+    printer.printf("datelength: %d\n", dateLength);
+    display.setTextSize(2);
+    display.setCursor(64-dateLength/2*4,16);
+    display.print(exampleDate);
+  
+    display.display();
+  }
 }
 
 void setup() {
+  // setup serial connection
   Serial.begin(9600);
+  printer.to_serial = true;
+  
+  // if wanted, wait for user to establish connection and send any data (i.e. press any button)
+  if(WAIT_FOR_SERIAL) {
+    delay(1000);
 
-    // setup GPIOs
-  pinMode(BUTTON, INPUT_PULLUP);
+    while(!Serial.available()) {}
+    Serial.println("Got connection!");
+  }
 
-  while(1) {
-    delay(50);
-    int buttonState = digitalRead(BUTTON);
-    if(buttonState == LOW) { // button pressed
-      Serial.println("Button pressed!");
-      break;
-    }
+  // setup GPIOs
+  if(BUTTONS_ACTIVE) {
+    pinMode(BUTTON, INPUT_PULLUP);
   }
 
   // setup ssd1306 display
-  if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
-    Serial.println("ERROR: SSD1306 allocation failed"); // TODO: use F("")?
-    while(1); // don't proceed, loop forever
-  }
+  if(DISPLAY_ACTIVE) {
+    if(!display.begin(SSD1306_SWITCHCAPVCC, SCREEN_ADDRESS)) { // SSD1306_SWITCHCAPVCC = generate display voltage from 3.3V internally
+      printer.println("ERROR: SSD1306 allocation failed"); // TODO: use F("")?
+      while(1); // don't proceed, loop forever
+    }
 
-  display.setTextSize(1); // Normal 1:1 pixel scale
-  display.setTextColor(SSD1306_WHITE); // Draw white text
-  display.setCursor(0,0); // Start at top-left corner
-  display.cp437(true); // Use full 256 char 'Code Page 437' font
-  display.clearDisplay();
-  display.display();
+    display.setTextSize(1); // Normal 1:1 pixel scale
+    display.setTextColor(SSD1306_WHITE); // Draw white text
+    display.setCursor(0,0); // Start at top-left corner
+    display.cp437(true); // Use full 256 char 'Code Page 437' font
+    display.clearDisplay();
+    display.display();
+
+    printer.to_display = true;
+  }
 
   printer.println("Booting WeatherTV");
 
   // setup Wifi
-  printer.println("> Connecting to WiFi");
-  WiFi.begin(wifiSSID, wifiPW);
-  while (WiFi.status() != WL_CONNECTED)
-    delay(500);
-  printer.println("> WiFi connection successful");
+  if(WIFI_ACTIVE) {
+    printer.println("> Connecting to WiFi");
+    WiFi.begin(wifiSSID, wifiPW);
+    while (WiFi.status() != WL_CONNECTED)
+      delay(500);
+    printer.println("> WiFi connection successful");
+  }
 }
 
 void loop() {
-  // button press -> change display
+  // button press or Enter via Serial connection -> change display
   delay(100);
-  int buttonState = digitalRead(BUTTON);
+  int buttonState;
+  bool stateChange = false;
+  if(BUTTONS_ACTIVE) {
+    buttonState = digitalRead(BUTTON);
+    stateChange = buttonState == LOW && prevButtonState == HIGH;
+  }
 
-  if(buttonState == LOW && prevButtonState == HIGH) { // high -> low = button just pressed
+  while(Serial.available()) {
+    int c = Serial.read();
+    stateChange = c == '\n' || c == '\r';
+  }
+
+  if(stateChange) { // high -> low = button just pressed
     switch(displayState) {
-      case SUN: displayState = TEMP; Serial.println("Switching states: SUN -> TEMP"); break;
-      case TEMP: displayState = DATE;  Serial.println("Switching state: TEMP -> DATE"); break;
-      case DATE: displayState = SUN; Serial.println("Switching state: DATE -> SUN"); break;
+      case SUN: displayState = TEMP; printer.println("Switching states: SUN -> TEMP"); break;
+      case TEMP: displayState = DATE;  printer.println("Switching state: TEMP -> DATE"); break;
+      case DATE: displayState = SUN; printer.println("Switching state: DATE -> SUN"); break;
     }
 
     switch(displayState) {
